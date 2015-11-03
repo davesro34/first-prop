@@ -17,7 +17,31 @@
 \tableofcontents
 \clearpage
 \section{Introduction}
-The intro! \cite{Lim2015} \cite{Chiavazzo2014}
+Virtually every field of science and engineering uses modeling to expand and elucidate the information available from experiments. These models range from simple one variable ODEs for a CSTR to computational fluid dynamics code. Experimental data is inherently messy; a well-developed model can bring clarity to complicated systems. Models have the additional advantage that they can be initialized as often as desired in whatever state is desired, while experiments can be challenging or expensive to initiate. The obvious caveats are that a model must be accurate enough to capture the "important" information while being compact enough to be solved in a reasonable timeframe.
+
+The field of dimensionality reduction explores the question of what information is "important". The concept is very old; for example, we learned early on that in the analysis of a chemical reaction, the important variables often include temperature and concentrations. The reaction may involve collisions between individual atoms, but we only need to know certain things about the average behavior to predict the results that we are interested in. However, as we encounter new systems (which are often more complex), we desire more systematic ways to extract these important variables. The most ubiquitous method is principal components analysis (PCA), which can be traced back to as early as 1901 \cite{Pearson1901}, but was developed across many fields under many names over much of the $20^{th}$ century \cite{Hotelling1933}. PCA can be thought of as an extension of the line-of-best-fit method to higher dimensions: if the data is viewed as a cloud of points in some high dimensional space, PCA determines which directions characterize the highest variability in the data. Projecting the data onto only these directions results in a reduced representation of the data that still captures most of the variability. One drawback to PCA is that it only captures linear relationships (consider the case of a line-of-best-fit vs. a nonlinear curve fit). The field of nonlinear dimensionality reduction has grown rapidly in recent years with the introduction of methods like kernel PCA \cite{Scholkopf1998}, local linear embedding \cite{Roweis2000}, Isomap \cite{Tenenbaum2000}, and diffusion maps \cite{Coifman2005} \cite{Coifman2005a} \cite{Coifman2006}.
+
+Dimensionality reduction methods have the potential to greatly improve models in terms of clarity and speed by reducing the model to the lower-dimensional representations that are easier to visualize and faster to compute. We are interested in using diffusion maps to improve model performance in molecular simulation and other relevant chemical engineering systems. Diffusion maps has recently shown promise in data analysis for models in transport \cite{Sonday2009}, chemical kinetics \cite{Chiavazzo2014}, and molecular dynamics \cite{Ferguson2010} \cite{Nedialkova2014} \cite{Kim2015}. We intend to expand on this work in the context of the "equation-free" (EF) framework, which uses short simulations of detailed models as the basis for projection in a coarse model (whose variables can be determined by diffusion maps). This idea of data analysis for the purpose of computation includes the idea that diffusion maps can aid in the development of a model or the characterization of dynamical systems by biasing where to next take data to gain "important" information. This in particular has applications to molecular simulation, where the characterization of rare events can be extremely expensive; methods to speed up these computations often require a good coarse variable to bias the simulation.
+
+This document will first explain the EF framework and then discuss diffusion maps and some of the challenges in its implementation. We will describe current work being done on a data-centric application in developmental dynamics, and then we will conclude with systems of interest in future work.
+
+\section{Equation-Free Modeling}
+
+
+
+\section{Diffusion Maps}
+
+
+
+\section{Application to Data Fusion: \it{Drosophila} embryos}
+
+
+
+\section{Systems of Interest}
+
+
+
+\section{Conclusions}
 
 \bibliographystyle{abbrv}
 \bibliography{../first-prop}
