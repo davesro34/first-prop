@@ -4,7 +4,7 @@
 \setlength{\textwidth}{165mm}
 \setlength{\oddsidemargin}{5mm}
 \usepackage{caption}
-\usepackage{graphicx, subcaption, amsfonts}
+\usepackage{graphicx, subcaption, amsfonts, amsmath}
 \graphicspath{ {./figs/} }
 \pagestyle{plain}
 \begin{document}
@@ -12,10 +12,12 @@
 \author{\LARGE Proposed by David Sroczynski\vspace{3mm}\\\Large under the supervision of\vspace{3mm}\\\LARGE Professor Yannis Kevrekidis}
 \date{11/04/2015}
 \maketitle
-
+\thispagestyle{empty}
 \clearpage
 \tableofcontents
+\thispagestyle{empty}
 \clearpage
+\pagenumbering{arabic}
 \section{Introduction}
 Virtually every field of science and engineering uses modeling to expand and elucidate the information available from experiments. These models range from simple one variable ODEs for a CSTR to computational fluid dynamics code. Experimental data is inherently messy; a well-developed model can bring clarity to complicated systems. Models have the additional advantage that they can be initialized as often as desired in whatever state is desired, while experiments can be challenging or expensive to initiate. The obvious caveats are that a model must be accurate enough to capture the "important" information while being compact enough to be solved in a reasonable timeframe.  \vspace{1mm}
 
@@ -40,9 +42,11 @@ Given the detailed simulator, the appropriate coarse description, and the two op
 \item Project the coarse variables forward in time using forward Euler integration or any other integration scheme.
 \end{enumerate}
 
-If the simulation data actually lie on or near a manifold characterized by the coarse variables, coarse projective integration offers vast speed-ups compared to straight integration of the fine simulation. This framework of using fine simulations to determine the coarse behavior also has applications in stability/bifurcation analysis \cite{Theodoropoulos} \cite{Gear2002} and the exploration of potential surfaces \cite{Frewen2009}. We are interested in applying this approach to systems where the coarse variables are not known \textit{a priori} but must be determined through dimensionality reduction.
+If the simulation data actually lie on or near a manifold characterized by the coarse variables, coarse projective integration offers vast speed-ups compared to straight integration of the fine simulation. This framework of using fine simulations to determine the coarse behavior also has applications in stability/bifurcation analysis \cite{Theodoropoulos2000} \cite{Gear2002} and the exploration of potential surfaces \cite{Frewen2009}. We are interested in applying this approach to systems where the coarse variables are not known \textit{a priori} but must be determined through dimensionality reduction.
 
 \section{Diffusion Maps}
+
+\subsection{Overview}
 
 Diffusion maps is a method of analyzing the geometry of data and discovering lower-dimensional manifolds that the data approximates. The algorithm is designed to approximate the continuous Laplace-Beltrami operator (which has been shown to provide good parametrizations of nonlinear manifolds) to discrete data. Suppose you have \textit{m} data points in \textit{n}-dimensional space represented by $y_1$,...,$y_\textit{m}$. The algorithm first constructs a weight matrix such that\\
 \[
@@ -52,14 +56,90 @@ where $|| \bullet ||$ is an appropriate norm or distance metric between to data 
 
 The eigendecomposition of W yields eigenvalues $\lambda _0$,...,$\lambda_{m-1}$ and eigenvectors $\phi _0$,...,$\phi_{m-1}$. Due to row-stochasticity, the first eigenvector $\phi_0$ is a trivial constant vector with $\lambda_0 = 1$. The other eigenvectors provide a new coordinate system such that the $k^{th}$ component of $y_i$ is given by the $i^{th}$ component of $\phi_k$, scaled by $\lambda_k$. In this new coordinate system, distance between two points is referred to as the diffusion distance. This diffusion distance represents moving from one point to another by diffusion, where you can only move to nearby points based on the probabilities in the weight matrix. Since diffusion distance is based on moving from point to point, it approximates the distance along the manifold that the points lie on. If there is a large spectral gap, meaning that some eigenvalues are significantly larger than others, then the diffusion distance can be accurately approximated using only coordinates with the largest eigenvalues.  The number of these large eigenvalues gives information about the true dimensionality of the manifold.
 
+\subsection{Choosing a distance metric and kernel scale}
+
+Since the diffusion maps algorithm is based entirely on the distances between points, choosing an approriate distance metric is critical. Assuming that each data point is represented by a vector such that each element represents one variable that describes the state (e.g., concentration of one chemical species, signal intensity at some point in space, etc.), then the obvious solution is simply the Euclidian distance between the two points described by the two data vectors. Unfortunately, in many instances, straightforward application of the Euclidean distance is not an informative measure of similarity. Here is a listing of some alternate approaches, and a short explanation of when they might be useful:
+
+\begin{enumerate}
+\item \textbf{Data preprocessing.}  This is a general term for cleaning up data so that the Euclidean distance becomes more informative. This can include actions like standardization of variables which span disparate scales, blurring of spatially organized data to remove uninformative small-scale structure, and contrast boosting or other image enhancement.
+\item \textbf{Feature extraction.} In certain cases, \textit{a priori} knowledge about the system can justify the selection of informative features. These functions of the original data can include ratios of quantities, times to achieve certain benchmarks, or quantities of distributions. This is essentially an initial step of dimensionality reduction before allowing the formal algorithm to finish the job. Unfortunately, this \textit{a priori} knowledge is often unavailable for new systems.
+\item \textbf{Mahalanobis distance.}  This metric is primarily useful in stochastic systems where movement along the slow manifold is obscured by independent white noise. Based on the covariance of the data, the Mahalanobis distance ignores directions which do not indicate meaningful dissimilarity. Given column vector observations $y_i$ and $y_j$ from a distribution with covariance $C$, the Mahalanobis distance is given by
+\[
+||y_i-y_j||^2_M = (y_i-y_j)^TC^{-1}(y_i-y_j)
+\]
+The covariance matrix typically must be estimated from the data, and often the estimation is not full-rank so a pseudoinverse is required.
+\item \textbf{Earth mover's distance}. Also known as the Wasserstein metric, this is a measure of distance between two probability ditributions, or more practically, between two normalized histograms. The earth mover's distance quantifies how much work is required to change one histogram into another. The choice to use the histogram is a form of feature extraction that is useful when the individual quantities are less informative than their distribution, as is often the case in applications such as molecular simulation.
+\item \textbf{Graph metrics} A graph is a representation of data that defines nodes (which can be people, websites, locations, etc.) and edges (connections) between nodes. These edges can be either weighted or unweighted, and either directed or undirected. Methods for graph similarity include edit distance, maximal common subgraph, and graph kernels. These methods are often computationally intractable, but methods exist for their approximation.
+\end{enumerate}
+
+Once the distance metric is chosen, the kernal scale $\sigma$ must also be chosen. This often requires some trial and error, but a good initial guess is to use some fraction (e.g., $\frac{1}/{2}$) of the median pairwise distance between data points. An alternate approach is to use the maximum distance to some number of nearest neighbors, averaged over each data point.
+
+\subsection{Synchronization of data}
+
+Another issue that can occur in the application of diffusion maps is when data points have some degree of freedom among some group that obscures the dynamics. One example is dynamics under periodic boundary conditions where we often want to factor out the translation. Other examples include 2D images that can be arbitrarily rotated, or molecular simulations of a complex molecule that can be arbitrarily shifted and rotated in 3D space. A common way to solve this problem is to align each images based on some template, but when the dynamics are complicated, it is not always obvious how to choose a template without \textit{a priori} knowledge, and pairwise alignment between a data point and a template can be noisy. The eigenvector alignment method solves this problem by considering each data point as the template for each of the other points and finding globally optimal alignments for each image. \vspace{1mm}
+
+The algorithm requires that the transformation between members of the group be represented by some operator $g_{ij}$ such that the operator satisfies the triplet consistency relation:
+\[
+g_{ik} = g_{ij}g_{jk}
+\]
+In the case of 1D periodic boundary conditions, we can consider the dynamics to be taking place on a ring, and then the operator $g_{ij}$ becomes $exp(-\theta_{ij})$, where $\theta_{ij}$ is the shift that takes data point $j$ to data point $i$. For general rotations, $g_{ij}$ becomes the rotation matrix $R_{ij}$, which can be $2$ by $2$ for rotations in the plane or $3$ by $3$ for rotations in 3d space. Once this operator is defined, we constrict the matrix $G$ such that each the $ij^{th}$ element (or $ij^{th}$  block) of $G$ is the operator $g_{ij}$. The top eigenvector (or eigenvectors in the block matrix case) gives the operators $g_i$ which transformed the optimal representation into data point $i$. This representation has degrees of freedom within the group (in the case of rotation within the plane, the solutions could be arbitrarily rotated within the plane), but it is optimized based on all pairwise comparisons. \vspace{1mm}
+
+An extension called vector diffusion maps exists which simultaneously aligns the images while performing diffusion maps. VDM is useful in cases where the dynamics are dramatic, and pairwise alignments between dynamically different data points become meaningless. VDM ignores these alignments and simultaneously provides global alignment information and dimensionality reduction.
+
+\subsection{Lifting and Restriction Operators}
+
+Various choices exist for lifting and restriction operators, which are essentially interpolation/curve fitting schemes. Several choices are summarized here; more detailed explanations and analysis can be found in \cite{Chiavazzo2014}. The problem statement is as follows: given a set of detailed descriptions $y_1$,...,$y_\textit{m}$, along with a set of corresponding coarse descriptions $\phi_1$,...,$\phi_\textit{m}$ from diffusion maps, how do we assign a new coarse description $\phi$ to a new detailed state $y$ and vice versa.
+
+\begin{enumerate}
+\item \textbf{Nystr\"om Extension.} This is one of the most common methods for finding diffusion maps coordinates for a new detailed state. The new coordinate is essentially calculated as a weighted sum of all of the previous coordinates with weights based on the diffusion kernel. The equation for the $\alpha^{th}$ component of the new coarse description is given by
+\[
+\phi_{\alpha} = \frac{1}{\lambda_\alpha}*(
+\]
 
 
+
+\end{enumerate}
+
+\subsection{Extending outside of the support}
 
 \section{Application to Data Fusion: \textit{Drosophila} embryos}
 
+\subsection{Data description and motivating problem}
 
+One application of diffusion maps is in the study of developmental dynamics. This application is not within the EF framework and is more focused on the data itself rather than using the data for calculations, but it does showcase many of the relevant tools in data analysis that form the backbone of EF modeling. The specific case is the development of 	\textit{Drosophila} embryos, where researchers are interested in tracking the embryo structure (as represented by the locations of cell nuclei) as well as the distribution of various relevent proteins. There are two relevant types of data sets:
 
-\section{Systems of Interest}
+\begin{enumerate}
+\item A live movie set consists of images every 30 seconds of the same embryo over some range of its development time. These images have nuclei labeled by Histone-RFP, and also have associated time stamps.
+\item Fixed snapshot data sets consist of one image from each of a set of embryo. These embryo have three channels; they are stained different colors for the nuclei as well as two proteins, Twist and dpERK. These images do not have time stamps, and they may also be arbitrarily rotated in the plane.
+\end{enumerate}
+
+The motivating problem is to construct an average developmental trajectory that contains information about all three channels as well as approximate timings. Prior work in the group has shown that the vector diffusion maps algorithm can very accurately reconstruct the ordering of the live movies even when they are scrambled and arbitrarily rotated. It has also been shown that VDM can also correctly rotate a data set of fixed snapshots, and the ordering is reasonably well consistent with manual ordering by an expert. The next step is to fuse these data sets together to produce a trajectory with color and time.
+
+\subsection{Challenges in data preprocessing}
+
+Each image consists of $100$ by $100$ pixels.  The live movies have just one channel value at each pixel, while the fixed snapshots have three. Each image can thus be viewed as a vector of length $100,000$ (or $300,000$ for fixed snapshots), and a simple first choice of metric is the Euclidean distance between two such vectors. Unfortunately, some significant work needs to be done to make that Euclidean distance informative. The imaging process can produce various image artifacts that are not relevent to the developmental dynamics, especially for the fixed snapshots which are all different embryo. Images need to be centered in the field of view and resized to occupy a consistent portion of the frame. Contrast limited adaptive histogram equalization (CLAHE) is used to normalize the images. We recently found that boosting the contrast significantly improves the performance, probably because whether or not a pixel is occupied is more important than the specific brightness level. Finally, we blur the images using a Gaussian filter to remove small scale structure that distorts the comparison. Variability between embryo means that features will not be in the exact same place; blurring allows such features to still be properly compared.
+
+\subsection{Synchronization of rotations and movie times}
+
+While the embryos in the live movies stay at the same orientation throughout development, the embryos in the fixed snapshots can be in any arbitrary orientation within the plane. While manual registration is possible, it is extremely tedious. The eigenvector alignment method is capable of registering the fixed snapshots with respect to each other in just seconds of computational time. As previously discussed, the final orientation is arbitrary, so there is a final step of rotating the snapshots to align with the live movies in order to do any comparison. The eigenvector alignment method also provides a framework for aligning the different live movies and the snapshots with respect to each other, but with only 7 live movies and 1 data set of snapshots, the gains over manual registration are minimal. \vspace{1mm}
+
+Another synchronization of interest is that of movie times.  When diffusion maps is run on multiple live movies simultaneously, we find that within each live movie there is a good monotonic relationship between time and the first diffusion maps coordinate. However, these different functional relationships are offset from each other. We believe that while some of this error is due to noise and embryo variability, issues with experimental design could be causing some of the discrepancy. For example, lack of precision in the fertilization time could mean that the times for one embryo are shifted in relation to another. Differences in ambient temperature or other environmental factors could cause one embryo to develop at a faster rate. We are interesting in finding factors by which to scale and shift the movie times so that they optimally align with each other. If we consider operations of the form
+\[
+t_j = a_{ij}*t_i+b_{ij}
+\]
+then the eigenvector alignment method can be used by considering the matrix operator
+\[
+g_{ij}=
+\begin{bmatrix}
+1 && 0\\
+a_{ij} && b_{ij}
+\end{bmatrix}
+\]
+The pairwise $a_{ij}$ and $b_{ij}$ can by quickly found by minimizing the least squares error between the two relationships for time as a function of the first diffusion maps coordinate. We then form the block matrix G, and the top two eigenvectors can be used to form a block eigenvector which contains the scales and shifts from the globally optimal solution. Again, there are degrees of freedom in the scale and in the shift, so we apply a final scale and shift such that the mean shift that we apply to the data is 0 and the mean log scale we apply is also 0. This is in an effort to modify the data as little as possible, and also to make the algorithm deterministic.
+
+\subsection{Data fusion to construct a representative trajectory}
+
+\section{Systems of Interest for Future Work}
 
 
 
