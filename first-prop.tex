@@ -46,7 +46,7 @@ If the simulation data actually lie on or near a manifold characterized by the c
 
 \section{Diffusion Maps}
 
-\subsection{Overview}
+\subsection{Overview} \label{DMO}
 
 Diffusion maps is a method of analyzing the geometry of data and discovering lower-dimensional manifolds that the data approximates. The algorithm is designed to approximate the continuous Laplace-Beltrami operator (which has been shown to provide good parametrizations of nonlinear manifolds) to discrete data. Suppose you have \textit{m} data points in \textit{n}-dimensional space represented by $y_1$,...,$y_\textit{m}$. The algorithm first constructs a weight matrix such that\\
 \[
@@ -91,16 +91,43 @@ An extension called vector diffusion maps exists which simultaneously aligns the
 Various choices exist for lifting and restriction operators, which are essentially interpolation/curve fitting schemes. Several choices are summarized here; more detailed explanations and analysis can be found in \cite{Chiavazzo2014}. The problem statement is as follows: given a set of detailed descriptions $y_1$,...,$y_\textit{m}$, along with a set of corresponding coarse descriptions $\phi_1$,...,$\phi_\textit{m}$ from diffusion maps, how do we assign a new coarse description $\phi$ to a new detailed state $y$ and vice versa.
 
 \begin{enumerate}
+\item \textbf{Nearest Neighbor.} The simplest approach is to take some an average of some number of nearest neighbors, possibly with some weighting based on distance to each neighbor. A slightly more sophisticated approach is to fit functional (often linear) relationships between the coarse and fine variables based on just the nearest neighbors.
 \item \textbf{Nystr\"om Extension.} This is one of the most common methods for finding diffusion maps coordinates for a new detailed state. The new coordinate is essentially calculated as a weighted sum of all of the previous coordinates with weights based on the diffusion kernel. The equation for the $\alpha^{th}$ component of the new coarse description is given by
 \[
-\phi_{\alpha} = \frac{1}{\lambda_\alpha}*(
+\phi_{\alpha} = \frac{1}{\lambda_\alpha}*\frac{\sum_{i=1}^m \phi_{i,\alpha}*exp(-\frac{||y_i-y_j||^2}{\sigma ^2})}{\sum_{i=1}^m exp(-\frac{||y_i-y_j||^2}{\sigma ^2})}
 \]
+The presence of $\frac{1}{\lambda_\alpha}$ ensures that applying the procedure to the existing points gives the same coordinates as the original diffusion maps algorithm; this can be verified by considering the eigenvalue problem in section \ref{DMO}. \vspace{1mm}
 
-
-
+In its typical formulation, the Nystr\"om extension is only a restriction operator, but it is possible to consider a lifting self-consistency problem of finding a new data point that would give a specific coarse description from Nystr\"om. While this has not been well-studied, it would likely involve opimization of an initial guess based on another method.
+\item \textbf{Radial Basis Functions}. This method can be implemented based on any function that depends only on the distance between two input points. Both lifting and restriction operators can be expressed on a sum over $nn$ nearest neighbors:
+\[
+\phi_{\alpha} =\sum_{i=1}^{nn} \beta_{i,\alpha}*f(||y-y_i||)
+\]
+The coefficients $\beta$ can be determined using linear algebra based on the $nn$ fitting points. The Nystr\"om extension can be thought of as a modified specific case of RBF where the radial function $f$ is the diffusion kernel and each $\beta$ involves $\lambda_\alpha$ as well as the normalization constant (which depends on $y$, unlike in RBF). Other common basis functions include simple powers of the distance.
+\item \textbf{Kriging.} Also known as Gaussian Process Regression, this method views the functional relationship as a realization of a stochastic Gaussian process based on the assumption that points that are nearby in space are statistically correlated. The first step is to fit (based on the data) a model for the semivariogram
+\[
+\gamma(y_i,y_j)=var(\phi(y_i)-\phi(y_j))
+\]
+where var($\bullet$) is the variance. The semivariogram is a measure of how different the coarse descriptions at $y_i$ and $y_j$ are likely to be; it often taken to be simply a function of the distance, although modifications exist to account for variation due to location and orientation in fine space. Depending on the assumptions, the Kriging equations can be slightly different: good discussions can be found in \cite{Press2007} and \cite{Isaaks1989}.
+\item \textbf{Laplacian Pyramids.} This is a multiscale method which finds $\phi_\alpha$ as a sum of fits on smaller and smaller scales. Assuming a given kernel $k$ (typically the normalized diffusion kernel from Nystr\"om using smaller and smaller $\sigma$), the first fit is found by
+\[
+s^{(0)}_\alpha=\sum_{i=1}^{nn} k^{(0)}(y_i,y)*\phi_{i,\alpha}
+\]
+Subsequent fits are found by reducing the kernel scale and fitting to the residual:
+\[
+s^{(l)}_\alpha=\sum_{i=1}^{nn} \left( k^{(l)}(y_i,y)*(\phi_{i,\alpha}-\sum_{j-0}^{l-1}s^{(j)}_\alpha )\right)
+\]
+After evaluating to an appropriate scale $l_{max}$, the final solution is given by
+\[
+\phi_\alpha=\sum_{l=0}^{l_{max}}s^{(l)}_\alpha
+\]
+Alternative multiscale methods exist, such as geometric harmonics.
 \end{enumerate}
 
 \subsection{Extending outside of the support}
+There is a nontrivial issue that arises when attempting to do calculations with diffusion maps coordinates that extend outside the support of the training data. The diffusion maps eigenproblem is an approximation of the Laplace-Beltrami operator on an underlying manifold. In the typical framework, diffusion only takes place between the data points, which implies no flux at the boundary. In the continuous case, the eigenfunctions involve cosines, so the slope at the boundary is 0. This means that attempting to model the behavior of diffusion maps coordinates outside the boundary is ill-posed; the diffusion maps coordinate is not changing at the boundary, and finding a fine state with a diffusion maps coordinate greater than the maximum is not possible for linear fit. Even in the discrete approximation where the slope doesn't go fully to 0, extension past the boundary is extremely error prone. \vspace{1mm}
+
+It is desirable to eliminate the zero slope at the boundary by modifying the eigenproblem to approximate boundary conditions with a specified flux. While some work has been done in this area, it remains more of an art than a science. It is necessary to first identify boundary points in each coarse direction. Row-stochasticity is eliminated for these points to simulate diffusion into the system at one boundary and out of the system at the other boundary. This allows much better modeling and extrapolation near the boundary.
 
 \section{Application to Data Fusion: \textit{Drosophila} embryos}
 
