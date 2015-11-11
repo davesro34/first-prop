@@ -133,18 +133,18 @@ It is desirable to eliminate the zero slope at the boundary by modifying the eig
 
 \subsection{Data description and motivating problem}
 
-One application of diffusion maps is in the study of developmental dynamics. This application is not within the EF framework and is more focused on the data itself rather than using the data for calculations, but it does showcase many of the relevant tools in data analysis that form the backbone of EF modeling. The specific case is the development of 	\textit{Drosophila} embryos, where researchers are interested in tracking the embryo structure (as represented by the locations of cell nuclei) as well as the distribution of various relevent proteins. There are two relevant types of data sets:
+One application of diffusion maps is in the study of developmental dynamics. This application is not within the EF framework and is more focused on the data itself rather than using the data for calculations, but it does showcase many of the relevant tools in data analysis that can be used to support EF modeling. Here, the specific case is the development of \textit{Drosophila} embryos, where researchers are interested in tracking the embryo structure (as represented by the locations of cell nuclei) as well as the distribution of various relevent proteins. There are two relevant types of data sets:
 
 \begin{enumerate}
 \item A live movie set consists of images every 30 seconds of the same embryo over some range of its development time. These images have nuclei labeled by Histone-RFP, and also have associated time stamps.
 \item Fixed snapshot data sets consist of one image from each of a set of embryo. These embryo have three channels; they are stained different colors for the nuclei as well as two proteins, Twist and dpERK. These images do not have time stamps, and they may also be arbitrarily rotated in the plane.
 \end{enumerate}
 
-The motivating problem is to construct an average developmental trajectory that contains information about all three channels as well as approximate timings. Prior work in the group has shown that the vector diffusion maps algorithm can very accurately reconstruct the ordering of the live movies even when they are scrambled and arbitrarily rotated. It has also been shown that VDM can also correctly rotate a data set of fixed snapshots, and the ordering is reasonably well consistent with manual ordering by an expert. The next step is to fuse these data sets together to produce a trajectory with color and time.
+The motivating problem is to construct an average developmental trajectory that contains information about all three channels as well as approximate timings. Prior work in the group has shown that the vector diffusion maps algorithm can very accurately reconstruct the ordering of the live movies even when they are scrambled and arbitrarily rotated. It has also been shown that VDM can correctly rotate a data set of fixed snapshots, and the ordering is reasonably well consistent with manual ordering by an expert. The next step is to fuse these data sets together to produce a trajectory with color and time.
 
 \subsection{Challenges in data preprocessing}
 
-Each image consists of $100$ by $100$ pixels.  The live movies have just one channel value at each pixel, while the fixed snapshots have three. Each image can thus be viewed as a vector of length $100,000$ (or $300,000$ for fixed snapshots), and a simple first choice of metric is the Euclidean distance between two such vectors. Unfortunately, some significant work needs to be done to make that Euclidean distance informative. The imaging process can produce various image artifacts that are not relevent to the developmental dynamics, especially for the fixed snapshots which are all different embryo. Images need to be centered in the field of view and resized to occupy a consistent portion of the frame. Contrast limited adaptive histogram equalization (CLAHE) is used to normalize the images. We recently found that boosting the contrast significantly improves the performance, probably because whether or not a pixel is occupied is more important than the specific brightness level. Finally, we blur the images using a Gaussian filter to remove small scale structure that distorts the comparison. Variability between embryo means that features will not be in the exact same place; blurring allows such features to still be properly compared.
+Each image consists of $100$ by $100$ pixels.  The live movies have just one channel value at each pixel, while the fixed snapshots have three. Each image can thus be viewed as a vector of length $100,000$ (or $300,000$ for fixed snapshots), and a simple first choice of metric is the Euclidean distance between two such vectors. Unfortunately, some significant work needs to be done to make that Euclidean distance informative. The imaging process can produce various image artifacts that are not relevent to the developmental dynamics, especially for the fixed snapshots which are all different embryo. Images need to be centered in the field of view and resized to occupy a consistent portion of the frame. Contrast limited adaptive histogram equalization (CLAHE) is used to normalize the images. We recently found that boosting the contrast significantly improves the performance, probably because whether or not a pixel is occupied is more important than the specific brightness level. Finally, we blur the images using a Gaussian filter to remove small scale structure that distorts the comparison. Variability between embryo means that features will not be in the exact same place; blurring allows such features to still be more properly compared.
 
 \subsection{Synchronization of rotations and movie times}
 
@@ -154,7 +154,7 @@ Another synchronization of interest is that of movie times.  When diffusion maps
 \[
 t_j = a_{ij}*t_i+b_{ij}
 \]
-then the eigenvector alignment method can be used by considering the matrix operator
+(i.e., how to scale and shift the times in movie $i$ to align with movie $j$), then the eigenvector alignment method can be used by considering the matrix operator
 \[
 g_{ij}=
 \begin{bmatrix}
@@ -166,8 +166,34 @@ The pairwise $a_{ij}$ and $b_{ij}$ can by quickly found by minimizing the least 
 
 \subsection{Data fusion to construct a representative trajectory}
 
+Our data fusion methodology is based on the assumption that the underlying process of embryonic development is primarily one-dimensional and that the primary dimension is monotonic with time. Different methods of observation (i.e., different imaging techniques) embed this 1D process in a higher-dimensional space. Imaging noise and inter-embryo variability represent high-dimensional noise around this one-dimensional manifold. \vspace{1mm}
+
+The initial attempt at data fusion used the additional assumption that the two data sets (live movies and fixed snapshots) had common information: the channel representing nuclei locations. At this point several algorithms are possible; we considered the following:
+
+\begin{enumerate}
+\item Run diffusion maps on common information from the (preprocessed) live movies and fixed snapshots as one data set.
+\item Based on the data, develop functional relationships between color values at each pixel and the diffusion maps coordinate.
+\item "Color" the live movies based on these functional relationships.
+\item Apply some smoothing to the colored live movies to create a smooth, representative trajectory.
+\end{enumerate}
+
+The results from this algorithm unfortunately failed multiple sanity checks. The functional relationships showed rough trends but were unreasonably noisy. The ordering of the fixed snapshots in diffusion maps space was poorly correlated with the ordering obtained by an expert. The fixed snapshots spanned a significantly wider range in diffusion maps space than the live movies did.
+
+While the general noisiness of the system contributes to these problem, another significant problem is comes from difference in imaging techniques. Visual inspection shows clear differences between the snapshots and the live movies, most notably in signal strength in the yolk of the embryo. This is believed to be related to the fact that different nuclei staining methods were used. Because of these issues, we violate the assumption that the two data sets have common information; instead they represent different observation functions of the common information. \vspace{1mm}
+
+One approach to this problem is more manual preprocessing of the fixed snapshots. If they can be adjusted so that the (hidden) observation functions are the same, the algorithm should have more success. We have experimented with removing the signal from the yolk, and the results show significant improvement but are still unsatisfactory. We are still investigating alternative preprocessing methods. \vspace{1mm}
+
+Another approach involves transforming the diffusion maps coordinates of the snapshots to better align with the coordinates of the movies. The challenge is to do so in a robust way that maintains the intra-data-set information while aligning the seperate data sets. We may include more diffusion maps coordinates (i.e., a higher dimensional representation), and consider transoformations that translate and twist but do not stretch. Both approaches are in the stage of manual experimentation; we hope to automate as much as possible when a viable approach is found. \vspace{1mm}
+
 \section{Systems of Interest for Future Work}
 
+This section is focused on systems where we hope to use diffusion maps to enable calculations in the EF framework.
+
+\subsection{Molecular dynamics}
+
+\subsection{Reaction networks}
+
+\subsection{Gillespie stochastic simulation algorithm}
 
 
 \section{Conclusions}
