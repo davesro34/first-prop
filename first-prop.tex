@@ -94,7 +94,7 @@ Various choices exist for lifting and restriction operators, which are essential
 \item \textbf{Nearest Neighbor.} The simplest approach is to take some an average of some number of nearest neighbors, possibly with some weighting based on distance to each neighbor. A slightly more sophisticated approach is to fit functional (often linear) relationships between the coarse and fine variables based on just the nearest neighbors.
 \item \textbf{Nystr\"om Extension.} This is one of the most common methods for finding diffusion maps coordinates for a new detailed state. The new coordinate is essentially calculated as a weighted sum of all of the previous coordinates with weights based on the diffusion kernel. The equation for the $\alpha^{th}$ component of the new coarse description is given by
 \[
-\phi_{\alpha} = \frac{1}{\lambda_\alpha}*\frac{\sum_{i=1}^m \phi_{i,\alpha}*exp(-\frac{||y_i-y_j||^2}{\sigma ^2})}{\sum_{i=1}^m exp(-\frac{||y_i-y_j||^2}{\sigma ^2})}
+\phi_{\alpha} = \frac{1}{\lambda_\alpha}*\frac{\sum_{i=1}^m \phi_{i,\alpha}*exp(-\frac{||y-y_i||^2}{\sigma ^2})}{\sum_{i=1}^m exp(-\frac{||y-y_i||^2}{\sigma ^2})}
 \]
 The presence of $\frac{1}{\lambda_\alpha}$ ensures that applying the procedure to the existing points gives the same coordinates as the original diffusion maps algorithm; this can be verified by considering the eigenvalue problem in section \ref{DMO}. \vspace{1mm}
 
