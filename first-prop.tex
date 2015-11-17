@@ -93,12 +93,18 @@ Since the diffusion maps algorithm is based entirely on the distances between po
 \[
 ||y_i-y_j||^2_M = (y_i-y_j)^TC^{-1}(y_i-y_j)
 \]
-The covariance matrix typically must be estimated from the data, and often the estimation is not full-rank so a pseudoinverse is required.
+The covariance matrix typically must be estimated from the data, and often the estimation is not full-rank so a pseudoinverse is required. For an example of where this is useful, see Figure~\ref{fig:mahalanobis}.
 \item \textbf{Earth mover's distance }\cite{Levina2001}\textbf{.}   Also known as the $1^{st}$ Wasserstein metric, this is a measure of distance between two probability distributions, or more practically, between two normalized histograms. The earth mover's distance quantifies how much work is required to change one histogram into another. The choice to use the histogram is a form of feature extraction that is useful when the individual quantities are less informative than their distribution, as is often the case in applications such as molecular simulation.
 \item \textbf{Graph metrics.} A graph is a representation of data that defines nodes (which can be people, websites, locations, etc.) and edges (connections) between nodes. These edges can be either weighted or unweighted, and either directed or undirected. Methods for graph similarity include edit distance, maximal common subgraph, and graph kernels. These methods are often computationally intractable, but methods exist for their approximation.
 \end{enumerate}
 
 Once the distance metric is chosen, the kernal scale $\sigma$ must also be chosen. This sometimes requires trial and error, but a good initial guess is to use some fraction (e.g., $\frac{1}{2}$) of the median pairwise distance between data points. An alternate approach is to use the maximum distance to some number of nearest neighbors, averaged over each data point.
+
+\begin{figure}[here]
+\includegraphics[width=\linewidth]{figures/mahalanobis}
+\caption{\textbf{Benefits of the Mahalanobis distance}. These figures show results of a stochastic simulation with a slow variable ($x_1$) which increases gradually over the course of the simulation, obscured by a fast variable ($x_2$) which has mean 0 but large brownian motion. (A) Data points are colored by the first diffusion maps coordinate using the Euclidean distance We recover the fast variable. (B) Data points are colored by the first diffusion maps coordinate using the Mahalanobis distance. We recover the slow variable. This is very useful in cases wherestochastic white noise obscures the relevant slow manifold. More analysis can be found in \cite{Dsilva2015}.}
+\label{fig:mahalanobis}
+\end{figure}
 
 \subsection{Synchronization of data: factoring out symmetry}
 
