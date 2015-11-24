@@ -7,6 +7,9 @@
 *.out
 *.toc
 
+## Subfolders
+comments
+
 ## Intermediate documents:
 *.dvi
 *-converted-to.*
